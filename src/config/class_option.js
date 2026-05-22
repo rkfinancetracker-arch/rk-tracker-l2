@@ -1,6 +1,6 @@
 const CLASS_OPTIONS = [
   'Dadar Classroom',
-  'Online Andheri No Classroom',
+  'Online',
 
 ];
 
