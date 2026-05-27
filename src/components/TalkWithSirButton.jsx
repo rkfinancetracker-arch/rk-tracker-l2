@@ -12,6 +12,8 @@ import {
 import subjectFullName from '../config/Subject';
 
 // ─── Helpers ───────────────────────────────────────────────────────────
+const SUBJECT_TEST_MAX = 4;
+
 function getOptionScore(options, answer) {
   if (!answer || !options || options.length === 0) return 0;
   const idx = options.indexOf(answer);
@@ -309,7 +311,24 @@ const extraRow = `
   </tr>
 `;
 
-    const finalRows = rows + extraRow;
+const STdone = Number(
+  localStorage.getItem(`trackpro_${subject}_subjectTests`) || 0
+);
+const STpercentage = (STdone / SUBJECT_TEST_MAX) * 100;
+const STcolor = getPerformanceColor(STpercentage);
+
+const subjectTestRow = `
+  <tr style="background:${rowAlt};">
+    <td style="padding:10px;border:1px solid ${bdr};text-align:left;">
+      Subject tests taken
+    </td>
+    <td style="padding:10px;border:1px solid ${bdr};text-align:center;color:${STcolor};">
+      ${STdone} / ${SUBJECT_TEST_MAX}
+    </td>
+  </tr>
+`;
+
+    const finalRows = rows + extraRow + subjectTestRow;
 
     return `
       <div
@@ -494,6 +513,76 @@ function buildPremiumQBChart() {
     bars += `<rect x="${x}" y="10" width="${barW}" height="${H}" rx="4" fill="${trackFill}" opacity="0.5"/>`;
     bars += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="4" fill="${color}"/>`;
     bars += `<text x="${x + barW / 2}" y="${y - 4}" text-anchor="middle" font-size="8" font-weight="700" fill="${color}">${data.percent}%</text>`;
+
+    const label = SHORT_NAMES[data.subject] || data.subject;
+    const words = label.split(' ');
+    const line1 = words[0];
+    const line2 = words.slice(1).join(' ');
+
+    if (words.length > 1) {
+      bars += `
+        <text x="${x + barW / 2}" y="${H + 18}" text-anchor="middle" font-size="12px" font-weight="900" fill="${textCol}">
+          <tspan x="${x + barW / 2}" dy="0">${line1}</tspan>
+          <tspan x="${x + barW / 2}" dy="9">${line2}</tspan>
+        </text>
+      `;
+    } else {
+      bars += `
+        <text x="${x + barW / 2}" y="${H + 22}" text-anchor="middle" font-size="12px" font-weight="900" fill="${textCol}">
+          ${label}
+        </text>
+      `;
+    }
+  });
+
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${W + 10} ${H + 35}">
+      ${yLabels}
+      ${bars}
+      <line x1="22" y1="${H + 10}" x2="${W + 5}" y2="${H + 10}" stroke="${gridCol}" stroke-width="1"/>
+      <line x1="22" y1="10" x2="22" y2="${H + 10}" stroke="${gridCol}" stroke-width="1"/>
+    </svg>
+  `;
+}
+
+// ─── Subject Tests chart (Y axis: 0 → SUBJECT_TEST_MAX) ────────────────
+function buildSubjectTestChart() {
+  const stData = SUBJECTS.map((sub) => {
+    const key = `trackpro_${sub}_subjectTests`;
+    const raw = localStorage.getItem(key);
+    const count = raw ? parseInt(raw) || 0 : 0;
+    const percent = SUBJECT_TEST_MAX > 0
+      ? Math.round((count / SUBJECT_TEST_MAX) * 100)
+      : 0;
+    return { subject: sub, count, percent };
+  });
+
+  const W = Math.max(460, SUBJECTS.length * 44);
+  const H = 130;
+  const barW = 26;
+  const gap = (W - 30 - barW * SUBJECTS.length) / (SUBJECTS.length + 1);
+  const textCol = '#718096';
+  const gridCol = 'rgba(0,0,0,0.06)';
+  const trackFill = '#e2e8f0';
+
+  // Y axis: integer ticks 0..SUBJECT_TEST_MAX (0,1,2,3,4)
+  let yLabels = '';
+  for (let i = 0; i <= SUBJECT_TEST_MAX; i++) {
+    const y = H - (i / SUBJECT_TEST_MAX) * H + 10;
+    yLabels += `<text x="18" y="${y + 3}" text-anchor="end" font-size="8" fill="${textCol}">${i}</text>`;
+    yLabels += `<line x1="22" y1="${y}" x2="${W + 5}" y2="${y}" stroke="${gridCol}" stroke-width="0.5" stroke-dasharray="3,3"/>`;
+  }
+
+  let bars = '';
+  stData.forEach((data, idx) => {
+    const x = 25 + gap + idx * (barW + gap);
+    const barH = (data.count / SUBJECT_TEST_MAX) * H;
+    const y = H - barH + 10;
+    const color = getPerformanceColor(data.percent);
+
+    bars += `<rect x="${x}" y="10" width="${barW}" height="${H}" rx="4" fill="${trackFill}" opacity="0.5"/>`;
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="4" fill="${color}"/>`;
+    bars += `<text x="${x + barW / 2}" y="${y - 4}" text-anchor="middle" font-size="8" font-weight="700" fill="${color}">${data.count}/${SUBJECT_TEST_MAX}</text>`;
 
     const label = SHORT_NAMES[data.subject] || data.subject;
     const words = label.split(' ');
@@ -768,6 +857,13 @@ ${details.attendingClass ? `
                 Premium QB Practice Status
               </h4>
               ${buildPremiumQBChart()}
+            </div>
+
+            <div class="chart-card" style="padding:12px;border:1px solid ${bdr};border-radius:10px;background:#6366f112;">
+              <h4 style="margin:0 0 6px 0;font-size:0.9rem;color:${txt};display:flex;align-items:center;gap:6px;">
+                Subject Tests Taken
+              </h4>
+              ${buildSubjectTestChart()}
             </div>
           </div>
         </div>
@@ -1121,25 +1217,171 @@ if (
       </div>
 
       {/* Fallback modal */}
-      {isOpen && (
-        <div className="modal-backdrop" onClick={closeModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            {/* … your existing modal JSX … */}
-          </div>
-        </div>
+    {isOpen && (
+  <div
+    onClick={closeModal}
+    style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0,0,0,0.55)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+      padding: '1rem',
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: 'var(--card-bg, #ffffff)',
+        color: 'var(--text-primary, #1a202c)',
+        borderRadius: '16px',
+        maxWidth: '460px',
+        width: '100%',
+        padding: '1.75rem',
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)',
+        position: 'relative',
+        border: '1px solid var(--card-border, rgba(0,0,0,0.08))',
+      }}
+    >
+      {/* Close button */}
+      <button
+        onClick={closeModal}
+        aria-label="Close"
+        style={{
+          position: 'absolute',
+          top: '0.75rem',
+          right: '0.75rem',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '0.4rem',
+          borderRadius: '8px',
+          color: 'var(--text-muted, #718096)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <X size={20} />
+      </button>
+
+      {/* Header */}
+      <div style={{ marginBottom: '1rem', paddingRight: '2rem' }}>
+        <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 700 }}>
+          Sharing not available
+        </h3>
+        <p
+          style={{
+            margin: 0,
+            fontSize: '0.92rem',
+            color: 'var(--text-secondary, #4a5568)',
+            lineHeight: 1.5,
+          }}
+        >
+          {shareError ||
+            'Your device does not support direct sharing. Download the PDF below, then open WhatsApp and attach it manually.'}
+        </p>
+      </div>
+
+      {/* Step indicators */}
+      <div
+        style={{
+          background: 'var(--bg-secondary, #f7fafc)',
+          border: '1px solid var(--card-border, rgba(0,0,0,0.08))',
+          borderRadius: '10px',
+          padding: '0.9rem 1rem',
+          marginBottom: '1.25rem',
+          fontSize: '0.88rem',
+          lineHeight: 1.6,
+        }}
+      >
+        <div><strong>1.</strong> Tap <em>Download PDF</em></div>
+        <div><strong>2.</strong> Tap <em>Open WhatsApp</em></div>
+        <div><strong>3.</strong> In WhatsApp, attach the downloaded PDF and send</div>
+      </div>
+
+      {/* Action buttons */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+        <button
+          onClick={downloadPDF}
+          style={{
+            width: '100%',
+            padding: '0.85rem 1rem',
+            fontSize: '1rem',
+            fontWeight: 600,
+            background: 'linear-gradient(135deg,#3182ce,#2c5282)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <Download size={18} /> Download PDF
+        </button>
+
+        <button
+          onClick={openWhatsApp}
+          style={{
+            width: '100%',
+            padding: '0.85rem 1rem',
+            fontSize: '1rem',
+            fontWeight: 600,
+            background: 'linear-gradient(135deg,#25D366,#128C7E)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <MessageCircle size={18} /> Open WhatsApp
+        </button>
+
+        <button
+          onClick={closeModal}
+          style={{
+            width: '100%',
+            padding: '0.7rem 1rem',
+            fontSize: '0.95rem',
+            fontWeight: 500,
+            background: 'transparent',
+            color: 'var(--text-muted, #718096)',
+            border: '1px solid var(--card-border, rgba(0,0,0,0.12))',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            marginTop: '0.25rem',
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+
+      {pdfFileName && (
+        <p
+          style={{
+            margin: '1rem 0 0 0',
+            fontSize: '0.75rem',
+            color: 'var(--text-muted, #a0aec0)',
+            textAlign: 'center',
+            wordBreak: 'break-all',
+          }}
+        >
+          File: {pdfFileName}
+        </p>
       )}
+    </div>
+  </div>
+)}
     </>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-

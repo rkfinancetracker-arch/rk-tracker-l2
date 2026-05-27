@@ -1,8 +1,8 @@
 const PQBTOTAL ={
    "Quants":59 ,
    "ECO": 59,
-   "CI":59,
    "FSA": 84,
+   "CI":59,
    "Equity": 101,
    "FI": 99,
    "DI": 63,

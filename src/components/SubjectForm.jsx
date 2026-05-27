@@ -5,22 +5,33 @@ import { BookOpen, RefreshCw } from 'lucide-react';
 import PQBTOTAL from '../config/PQB';
 import { useNavigate } from 'react-router-dom';
 
+const SUBJECT_TEST_MAX = 4;
+
 export default function SubjectForm({ subjectName }) {
   const chapters = getChapters(subjectName);
   const premiumQBKey = `trackpro_${subjectName}_premiumQuestionBank`;
-  const forthis = PQBTOTAL[subjectName] ;
+  const subjectTestKey = `trackpro_${subjectName}_subjectTests`;
+  const forthis = PQBTOTAL[subjectName];
   const navigate = useNavigate();
- 
+
   const keys = Object.keys(PQBTOTAL);
 
-const nextSubject =
-  keys.indexOf(subjectName) !== -1
-    ? keys[keys.indexOf(subjectName) + 1]
-    : null;
+  const nextSubject =
+    keys.indexOf(subjectName) !== -1
+      ? keys[keys.indexOf(subjectName) + 1]
+      : null;
 
   const [premiumQBValue, setPremiumQBValue] = useState(() => {
     try {
       return window.localStorage.getItem(premiumQBKey) || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const [subjectTestValue, setSubjectTestValue] = useState(() => {
+    try {
+      return window.localStorage.getItem(subjectTestKey) || '';
     } catch {
       return '';
     }
@@ -52,26 +63,44 @@ const nextSubject =
   }, [subjectName, chapters]);
 
   useEffect(() => {
-  try {
-    const stored = window.localStorage.getItem(premiumQBKey);
-    setPremiumQBValue(stored || '');
-  } catch {
-    setPremiumQBValue('0');
-  }
-}, [subjectName]);
+    try {
+      const stored = window.localStorage.getItem(premiumQBKey);
+      setPremiumQBValue(stored || '');
+    } catch {
+      setPremiumQBValue('0');
+    }
+  }, [subjectName]);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(subjectTestKey);
+      setSubjectTestValue(stored || '');
+    } catch {
+      setSubjectTestValue('');
+    }
+  }, [subjectName]);
 
   const handlePremiumQBChange = (e) => {
     const value = e.target.value;
-  if (value > forthis) {
-
-  input.value = "";
-  input.focus();
-  return;
-}
+    if (Number(value) > forthis) {
+      return;
+    }
     setPremiumQBValue(value);
 
     try {
       window.localStorage.setItem(premiumQBKey, value);
+    } catch {}
+  };
+
+  const handleSubjectTestChange = (e) => {
+    const value = e.target.value;
+    if (Number(value) > SUBJECT_TEST_MAX) {
+      return;
+    }
+    setSubjectTestValue(value);
+
+    try {
+      window.localStorage.setItem(subjectTestKey, value);
     } catch {}
   };
 
@@ -87,6 +116,7 @@ const nextSubject =
       });
 
       window.localStorage.removeItem(premiumQBKey);
+      window.localStorage.removeItem(subjectTestKey);
       window.location.reload();
     }
   };
@@ -115,8 +145,6 @@ const nextSubject =
         </button>
       </div>
 
-   
-
       <div className="flex flex-col gap-3">
         {chapters.length === 0 && (
           <p style={{ color: 'var(--text-muted)' }}>
@@ -126,14 +154,14 @@ const nextSubject =
 
         {chapters.map((chapterName) => (
           <ChapterAccordion
-          key={`${subjectName}-${chapterName}`}
+            key={`${subjectName}-${chapterName}`}
             subjectName={subjectName}
             chapterName={chapterName}
           />
         ))}
       </div>
 
-         <div
+      <div
         style={{
           marginBottom: '1rem',
           padding: '0.9rem 1rem',
@@ -151,13 +179,14 @@ const nextSubject =
             color: 'var(--text-primary)',
           }}
         >
-        Prem QB questions practiced : {premiumQBValue === '' ? 'X' : premiumQBValue}/{forthis}
+          Prem QB questions practiced : {premiumQBValue === '' ? 'X' : premiumQBValue}/{forthis}
         </label>
 
         <input
           id={`premium-qb-${subjectName}`}
           type="number"
           min="0"
+          max={forthis}
           step="1"
           value={premiumQBValue}
           onChange={handlePremiumQBChange}
@@ -175,65 +204,100 @@ const nextSubject =
           }}
         />
 
-{nextSubject && (
-  <button
-    onClick={() =>
-      navigate(`/subject/${encodeURIComponent(nextSubject)}`)
-    }
-    style={{
-      marginTop: "0.8rem",
-      padding: "0.6rem 1rem",
-      borderRadius: "10px",
-      border: "1px solid var(--accent-primary)",
-      background: "var(--accent-primary)",
-      color: "#fff",
-      fontWeight: 600,
-      fontSize: "0.9rem",
-      cursor: "pointer",
-      transition: "all 0.2s ease",
-      boxShadow: "0 4px 10px rgba(0,0,0,0.08)"
-    }}
-    onMouseEnter={(e) => {
-      e.target.style.transform = "translateY(-1px)";
-      e.target.style.boxShadow = "0 6px 14px rgba(0,0,0,0.12)";
-    }}
-    onMouseLeave={(e) => {
-      e.target.style.transform = "translateY(0)";
-      e.target.style.boxShadow = "0 4px 10px rgba(0,0,0,0.08)";
-    }}
-  >
-    Next Subject → {nextSubject}
-  </button>
-)}
+        <label
+          htmlFor={`subject-test-${subjectName}`}
+          style={{
+            display: 'block',
+            fontWeight: 600,
+            margin: '1.2rem 0 0.5rem 0',
+            color: 'var(--text-primary)',
+          }}
+        >
+          Subject tests taken : {subjectTestValue === '' ? 'X' : subjectTestValue}/{SUBJECT_TEST_MAX}
+        </label>
 
-  <button
-    onClick={() => navigate('/dashboard')}
-    style={{
-      marginTop: "0.8rem",
-      padding: "0.6rem 1rem",
-      borderRadius: "10px",
-      border: "1px solid var(--success)",
-      background: "var(--success)",
-      color: "#fff",
-      fontWeight: 600,
-      fontSize: "0.9rem",
-      cursor: "pointer",
-      transition: "all 0.2s ease",
-      boxShadow: "0 4px 10px rgba(0,0,0,0.08)"
-    }}
-    onMouseEnter={(e) => {
-      e.target.style.transform = "translateY(-1px)";
-      e.target.style.boxShadow = "0 6px 14px rgba(0,0,0,0.12)";
-    }}
-    onMouseLeave={(e) => {
-      e.target.style.transform = "translateY(0)";
-      e.target.style.boxShadow = "0 4px 10px rgba(0,0,0,0.08)";
-    }}
-  >
-    ✓ Submit & Go to Dashboard
-  </button>
+        <input
+          id={`subject-test-${subjectName}`}
+          type="number"
+          min="0"
+          max={SUBJECT_TEST_MAX}
+          step="1"
+          value={subjectTestValue}
+          onChange={handleSubjectTestChange}
+          placeholder="Enter value"
+          style={{
+            width: '100%',
+            maxWidth: '240px',
+            padding: '0.65rem 0.8rem',
+            borderRadius: '10px',
+            border: '1px solid var(--card-border)',
+            background: 'var(--bg-primary)',
+            color: 'var(--text-primary)',
+            outline: 'none',
+            fontSize: '0.95rem',
+          }}
+        />
 
-         </div>
+        {nextSubject && (
+          <button
+            onClick={() =>
+              navigate(`/subject/${encodeURIComponent(nextSubject)}`)
+            }
+            style={{
+              display: 'block',
+              marginTop: '1rem',
+              padding: '0.6rem 1rem',
+              borderRadius: '10px',
+              border: '1px solid var(--accent-primary)',
+              background: 'var(--accent-primary)',
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-1px)';
+              e.target.style.boxShadow = '0 6px 14px rgba(0,0,0,0.12)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 4px 10px rgba(0,0,0,0.08)';
+            }}
+          >
+            Next Subject → {nextSubject}
+          </button>
+        )}
+
+        <button
+          onClick={() => navigate('/dashboard')}
+          style={{
+            display: 'block',
+            marginTop: '0.8rem',
+            padding: '0.6rem 1rem',
+            borderRadius: '10px',
+            border: '1px solid var(--success)',
+            background: 'var(--success)',
+            color: '#fff',
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.08)',
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'translateY(-1px)';
+            e.target.style.boxShadow = '0 6px 14px rgba(0,0,0,0.12)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = '0 4px 10px rgba(0,0,0,0.08)';
+          }}
+        >
+          ✓ Submit & Go to Dashboard
+        </button>
+      </div>
     </div>
   );
 }
